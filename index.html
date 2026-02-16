@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Monaco Case Processor</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+
+  <div class="container">
+    <h1>Monaco Case Processor</h1>
+
+    <div class="card">
+      <h2>Upload Spreadsheet</h2>
+      <input type="file" id="fileInput" accept=".xlsx,.xls" />
+      <button id="uploadBtn">Start Processing</button>
+      <div id="error" class="error hidden"></div>
+    </div>
+
+    <div class="card hidden" id="progressCard">
+      <h2>Processing</h2>
+      <div class="progress-bar">
+        <div class="progress-fill" id="progressFill"></div>
+      </div>
+      <p id="progressText">Waiting...</p>
+    </div>
+
+    <div class="card hidden" id="resultsCard">
+      <h2>Downloads</h2>
+      <button id="downloadPoasBtn">Download PoAs</button>
+      <button id="downloadFilingBtn">Download Filing Document</button>
+    </div>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>
