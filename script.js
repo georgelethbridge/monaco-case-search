@@ -102,3 +102,47 @@ function resetUI() {
   progressFill.style.width = "0%";
   progressText.textContent = "Starting...";
 }
+
+const reviewCard = document.getElementById("reviewCard");
+const resultsTableBody = document.querySelector("#resultsTable tbody");
+
+let latestJobData = null;
+
+function updateProgress(data) {
+  latestJobData = data;
+  const percent = data.progress || 0;
+  progressFill.style.width = percent + "%";
+  progressText.textContent = `${percent}% completed`;
+}
+
+function showResults() {
+  resultsCard.classList.remove("hidden");
+  renderResultsTable(latestJobData);
+}
+
+function renderResultsTable(data) {
+  if (!data?.results) return;
+
+  resultsTableBody.innerHTML = "";
+  for (const r of data.results) {
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td>${escapeHtml(r.epNumber)}</td>
+      <td>${escapeHtml(r.applicantName || "")}</td>
+      <td>${escapeHtml(r.applicantAddress || "")}</td>
+      <td>${escapeHtml(r.status)}${r.error ? " (" + escapeHtml(r.error) + ")" : ""}</td>
+    `;
+    resultsTableBody.appendChild(tr);
+  }
+
+  reviewCard.classList.remove("hidden");
+}
+
+function escapeHtml(s) {
+  return String(s)
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
+}
