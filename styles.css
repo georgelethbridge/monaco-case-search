@@ -6,7 +6,7 @@ body {
 }
 
 .container {
-  max-width: 760px;
+  max-width: 700px;
   margin: auto;
 }
 
@@ -39,41 +39,61 @@ button:hover {
   background-color: #1f2d3a;
 }
 
-button:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
-
-input[type="file"],
-textarea {
+input[type="file"] {
   display: block;
-  width: 100%;
   margin-bottom: 10px;
-  box-sizing: border-box;
+  width: 100%;
 }
 
 textarea {
+  width: 100%;
+  box-sizing: border-box;
   resize: vertical;
-  padding: 10px;
+  min-height: 160px;
+  padding: 10px 12px;
+  border: 1px solid #d9dfe7;
+  border-radius: 6px;
   font: inherit;
 }
 
-.label {
+.field-label {
   display: block;
-  margin-bottom: 6px;
   font-weight: 600;
+  margin-bottom: 8px;
 }
 
-.muted {
-  color: #5f6b76;
+.help-text {
   margin-top: 0;
+  color: #4f5b67;
+  line-height: 1.5;
 }
 
-.orDivider {
-  text-align: center;
-  color: #6b7280;
-  font-size: 13px;
-  margin: 14px 0;
+.or-divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: #7a8794;
+  margin: 18px 0;
+}
+
+.or-divider::before,
+.or-divider::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: #e5e9ef;
+}
+
+.button-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.button-row button {
+  margin-top: 0;
+  margin-right: 0;
 }
 
 .progress-bar {
