@@ -1,7 +1,8 @@
 const BACKEND_URL = "https://monaco-reg-backend.onrender.com";
 
 const fileInput = document.getElementById("fileInput");
-const uploadBtn = document.getElementById("uploadBtn");
+const patentNumbersInput = document.getElementById("patentNumbersInput");
+const generateBtn = document.getElementById("generateBtn");
 const errorDiv = document.getElementById("error");
 
 const progressCard = document.getElementById("progressCard");
@@ -9,104 +10,99 @@ const progressFill = document.getElementById("progressFill");
 const progressText = document.getElementById("progressText");
 
 const resultsCard = document.getElementById("resultsCard");
-const downloadPoasBtn = document.getElementById("downloadPoasBtn");
-const downloadFilingBtn = document.getElementById("downloadFilingBtn");
+const downloadAllBtn = document.getElementById("downloadAllBtn");
+
+const reviewCard = document.getElementById("reviewCard");
+const resultsTableBody = document.querySelector("#resultsTable tbody");
 
 let currentJobId = null;
 let pollInterval = null;
+let latestJobData = null;
+let autoDownloadStarted = false;
 
-uploadBtn.addEventListener("click", async () => {
+generateBtn.addEventListener("click", async () => {
   const file = fileInput.files[0];
-  if (!file) {
-    showError("Please select a spreadsheet file.");
+  const patentNumbersText = patentNumbersInput.value.trim();
+
+  if (!file && !patentNumbersText) {
+    showError("Please upload a file or enter at least one patent number.");
     return;
   }
 
   resetUI();
   progressCard.classList.remove("hidden");
-
-  const formData = new FormData();
-  formData.append("file", file);
+  generateBtn.disabled = true;
 
   try {
-    const response = await fetch(`${BACKEND_URL}/api/jobs`, {
-      method: "POST",
-      body: formData
-    });
+    let response;
 
-    if (!response.ok) {
-      throw new Error("Failed to create job.");
+    if (file) {
+      const formData = new FormData();
+      formData.append("file", file);
+
+      response = await fetch(`${BACKEND_URL}/api/jobs`, {
+        method: "POST",
+        body: formData
+      });
+    } else {
+      response = await fetch(`${BACKEND_URL}/api/jobs/from-list`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ patentNumbers: patentNumbersText })
+      });
     }
 
-    const data = await response.json();
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw new Error(data.error || "Failed to create job.");
+    }
+
     currentJobId = data.jobId;
-
     startPolling();
-
   } catch (err) {
+    generateBtn.disabled = false;
     showError(err.message);
   }
 });
 
 function startPolling() {
+  clearInterval(pollInterval);
+
   pollInterval = setInterval(async () => {
     try {
       const response = await fetch(`${BACKEND_URL}/api/jobs/${currentJobId}`);
       const data = await response.json();
 
+      if (!response.ok) {
+        throw new Error(data.error || "Failed to fetch job status.");
+      }
+
       updateProgress(data);
 
       if (data.status === "completed") {
         clearInterval(pollInterval);
+        generateBtn.disabled = false;
         showResults();
+        if (!autoDownloadStarted) {
+          autoDownloadStarted = true;
+          triggerDownloadAll();
+        }
       }
 
       if (data.status === "failed") {
         clearInterval(pollInterval);
-        showError("Processing failed.");
+        generateBtn.disabled = false;
+        showError(data.error || "Processing failed.");
       }
-
     } catch (err) {
       clearInterval(pollInterval);
-      showError("Error checking job status.");
+      generateBtn.disabled = false;
+      showError(err.message || "Error checking job status.");
     }
   }, 2000);
 }
-
-function updateProgress(data) {
-  const percent = data.progress || 0;
-  progressFill.style.width = percent + "%";
-  progressText.textContent = `${percent}% completed`;
-}
-
-function showResults() {
-  resultsCard.classList.remove("hidden");
-}
-
-downloadPoasBtn.addEventListener("click", () => {
-  window.location.href = `${BACKEND_URL}/api/jobs/${currentJobId}/download/poas`;
-});
-
-downloadFilingBtn.addEventListener("click", () => {
-  window.location.href = `${BACKEND_URL}/api/jobs/${currentJobId}/download/filing`;
-});
-
-function showError(message) {
-  errorDiv.textContent = message;
-  errorDiv.classList.remove("hidden");
-}
-
-function resetUI() {
-  errorDiv.classList.add("hidden");
-  resultsCard.classList.add("hidden");
-  progressFill.style.width = "0%";
-  progressText.textContent = "Starting...";
-}
-
-const reviewCard = document.getElementById("reviewCard");
-const resultsTableBody = document.querySelector("#resultsTable tbody");
-
-let latestJobData = null;
 
 function updateProgress(data) {
   latestJobData = data;
@@ -118,6 +114,30 @@ function updateProgress(data) {
 function showResults() {
   resultsCard.classList.remove("hidden");
   renderResultsTable(latestJobData);
+}
+
+downloadAllBtn.addEventListener("click", triggerDownloadAll);
+
+function triggerDownloadAll() {
+  if (!currentJobId) return;
+  window.location.href = `${BACKEND_URL}/api/jobs/${currentJobId}/download/all`;
+}
+
+function showError(message) {
+  errorDiv.textContent = message;
+  errorDiv.classList.remove("hidden");
+}
+
+function resetUI() {
+  errorDiv.classList.add("hidden");
+  errorDiv.textContent = "";
+  resultsCard.classList.add("hidden");
+  reviewCard.classList.add("hidden");
+  resultsTableBody.innerHTML = "";
+  progressFill.style.width = "0%";
+  progressText.textContent = "Starting...";
+  latestJobData = null;
+  autoDownloadStarted = false;
 }
 
 function renderResultsTable(data) {
