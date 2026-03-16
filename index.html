@@ -12,30 +12,36 @@
     <h1>Monaco Case Processor</h1>
 
     <div class="card">
-      <h2>Upload CSV or paste patent numbers</h2>
-      <p class="muted">
-        Paste EP numbers separated by a tab, space, line break, comma, ampersand, or semicolon,
-        or upload a spreadsheet / CSV.
+      <h2>Patent Numbers</h2>
+      <p class="help-text">
+        Upload a spreadsheet or paste patent numbers. Accepted separators:
+        tab, space, line break, comma, ampersand, or semicolon.
       </p>
 
-      <label class="label" for="patentNumbersInput">Patent numbers</label>
-      <textarea
-        id="patentNumbersInput"
-        rows="6"
-        placeholder="EP3363809, EP1234567&#10;EP7654321"
-      ></textarea>
-
-      <div class="orDivider">or</div>
-
-      <label class="label" for="fileInput">Upload file</label>
+      <label class="field-label" for="fileInput">Upload spreadsheet</label>
       <input type="file" id="fileInput" accept=".xlsx,.xls,.csv" />
 
-      <button id="generateBtn">Generate &amp; Download All Forms</button>
+      <div class="or-divider"><span>or</span></div>
+
+      <label class="field-label" for="patentList">Paste patent numbers</label>
+      <textarea
+        id="patentList"
+        rows="8"
+        placeholder="Example:
+EP3363809, EP1234567
+EP7654321; EP9999999"
+      ></textarea>
+
+      <div class="button-row">
+        <button id="processPoasBtn">Process PoAs</button>
+        <button id="generateFormsBtn">Generate Forms</button>
+      </div>
+
       <div id="error" class="error hidden"></div>
     </div>
 
     <div class="card hidden" id="progressCard">
-      <h2>Processing</h2>
+      <h2 id="progressTitle">Processing</h2>
       <div class="progress-bar">
         <div class="progress-fill" id="progressFill"></div>
       </div>
@@ -44,7 +50,9 @@
 
     <div class="card hidden" id="resultsCard">
       <h2>Downloads</h2>
-      <button id="downloadAllBtn">Download All Forms</button>
+      <p id="resultsMessage"></p>
+      <button id="downloadPoasBtn" class="hidden">Download PoAs</button>
+      <button id="downloadFilingBtn" class="hidden">Download Forms</button>
     </div>
 
     <div class="card hidden" id="reviewCard">
