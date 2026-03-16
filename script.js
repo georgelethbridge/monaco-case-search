@@ -1,37 +1,60 @@
 const BACKEND_URL = "https://monaco-reg-backend.onrender.com";
 
 const fileInput = document.getElementById("fileInput");
-const patentNumbersInput = document.getElementById("patentNumbersInput");
-const generateBtn = document.getElementById("generateBtn");
+const patentList = document.getElementById("patentList");
+const processPoasBtn = document.getElementById("processPoasBtn");
+const generateFormsBtn = document.getElementById("generateFormsBtn");
 const errorDiv = document.getElementById("error");
 
 const progressCard = document.getElementById("progressCard");
+const progressTitle = document.getElementById("progressTitle");
 const progressFill = document.getElementById("progressFill");
 const progressText = document.getElementById("progressText");
 
 const resultsCard = document.getElementById("resultsCard");
-const downloadAllBtn = document.getElementById("downloadAllBtn");
+const resultsMessage = document.getElementById("resultsMessage");
+const downloadPoasBtn = document.getElementById("downloadPoasBtn");
+const downloadFilingBtn = document.getElementById("downloadFilingBtn");
 
 const reviewCard = document.getElementById("reviewCard");
 const resultsTableBody = document.querySelector("#resultsTable tbody");
 
 let currentJobId = null;
-let pollInterval = null;
+let currentJobType = null;
 let latestJobData = null;
-let autoDownloadStarted = false;
+let pollInterval = null;
 
-generateBtn.addEventListener("click", async () => {
+processPoasBtn.addEventListener("click", () => startJob("poas"));
+generateFormsBtn.addEventListener("click", () => startJob("filing"));
+
+downloadPoasBtn.addEventListener("click", () => {
+  if (!currentJobId) return;
+  window.location.href = `${BACKEND_URL}/api/jobs/${currentJobId}/download/poas`;
+});
+
+downloadFilingBtn.addEventListener("click", () => {
+  if (!currentJobId) return;
+  window.location.href = `${BACKEND_URL}/api/jobs/${currentJobId}/download/filing`;
+});
+
+async function startJob(jobType) {
   const file = fileInput.files[0];
-  const patentNumbersText = patentNumbersInput.value.trim();
+  const rawList = patentList.value.trim();
 
-  if (!file && !patentNumbersText) {
-    showError("Please upload a file or enter at least one patent number.");
+  if (!file && !rawList) {
+    showError("Please upload a spreadsheet or paste patent numbers.");
+    return;
+  }
+
+  if (file && rawList) {
+    showError("Please use either a spreadsheet upload or pasted patent numbers, not both.");
     return;
   }
 
   resetUI();
+  currentJobType = jobType;
   progressCard.classList.remove("hidden");
-  generateBtn.disabled = true;
+  progressTitle.textContent = jobType === "poas" ? "Processing PoAs" : "Generating Forms";
 
   try {
     let response;
@@ -39,18 +62,20 @@ generateBtn.addEventListener("click", async () => {
     if (file) {
       const formData = new FormData();
       formData.append("file", file);
+      formData.append("jobType", jobType);
 
       response = await fetch(`${BACKEND_URL}/api/jobs`, {
         method: "POST",
-        body: formData
+        body: formData,
       });
     } else {
       response = await fetch(`${BACKEND_URL}/api/jobs/from-list`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({ patentNumbers: patentNumbersText })
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          patentNumbers: rawList,
+          jobType,
+        }),
       });
     }
 
@@ -62,13 +87,12 @@ generateBtn.addEventListener("click", async () => {
     currentJobId = data.jobId;
     startPolling();
   } catch (err) {
-    generateBtn.disabled = false;
-    showError(err.message);
+    showError(err.message || "Failed to create job.");
   }
-});
+}
 
 function startPolling() {
-  clearInterval(pollInterval);
+  clearExistingPoll();
 
   pollInterval = setInterval(async () => {
     try {
@@ -76,72 +100,78 @@ function startPolling() {
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.error || "Failed to fetch job status.");
+        throw new Error(data.error || "Error checking job status.");
       }
 
+      latestJobData = data;
       updateProgress(data);
 
       if (data.status === "completed") {
-        clearInterval(pollInterval);
-        generateBtn.disabled = false;
-        showResults();
-        if (!autoDownloadStarted) {
-          autoDownloadStarted = true;
-          triggerDownloadAll();
-        }
+        clearExistingPoll();
+        showResults(data);
       }
 
       if (data.status === "failed") {
-        clearInterval(pollInterval);
-        generateBtn.disabled = false;
+        clearExistingPoll();
         showError(data.error || "Processing failed.");
       }
     } catch (err) {
-      clearInterval(pollInterval);
-      generateBtn.disabled = false;
+      clearExistingPoll();
       showError(err.message || "Error checking job status.");
     }
   }, 2000);
 }
 
 function updateProgress(data) {
-  latestJobData = data;
-  const percent = data.progress || 0;
-  progressFill.style.width = percent + "%";
-  progressText.textContent = `${percent}% completed`;
+  const percent = Number(data.progress || 0);
+  progressFill.style.width = `${percent}%`;
+
+  if (data.status === "queued") {
+    progressText.textContent = "Queued...";
+    return;
+  }
+
+  if (data.status === "processing") {
+    const count = Number(data.count || 0);
+    const processed = Number(data.processed || 0);
+    progressText.textContent = count > 0
+      ? `${percent}% completed (${processed}/${count})`
+      : `${percent}% completed`;
+    return;
+  }
+
+  if (data.status === "completed") {
+    progressText.textContent = "Completed";
+  }
 }
 
-function showResults() {
+function showResults(data) {
   resultsCard.classList.remove("hidden");
-  renderResultsTable(latestJobData);
-}
 
-downloadAllBtn.addEventListener("click", triggerDownloadAll);
+  const count = Number(data.count || 0);
+  const label = count === 1 ? "patent" : "patents";
 
-function triggerDownloadAll() {
-  if (!currentJobId) return;
-  window.location.href = `${BACKEND_URL}/api/jobs/${currentJobId}/download/all`;
-}
+  downloadPoasBtn.classList.add("hidden");
+  downloadFilingBtn.classList.add("hidden");
 
-function showError(message) {
-  errorDiv.textContent = message;
-  errorDiv.classList.remove("hidden");
-}
-
-function resetUI() {
-  errorDiv.classList.add("hidden");
-  errorDiv.textContent = "";
-  resultsCard.classList.add("hidden");
-  reviewCard.classList.add("hidden");
-  resultsTableBody.innerHTML = "";
-  progressFill.style.width = "0%";
-  progressText.textContent = "Starting...";
-  latestJobData = null;
-  autoDownloadStarted = false;
+  if (currentJobType === "poas") {
+    resultsMessage.textContent = `PoAs are ready for ${count} ${label}.`;
+    downloadPoasBtn.classList.remove("hidden");
+    renderResultsTable(data);
+  } else {
+    resultsMessage.textContent = `Forms are ready for ${count} ${label}.`;
+    reviewCard.classList.add("hidden");
+    resultsTableBody.innerHTML = "";
+    downloadFilingBtn.classList.remove("hidden");
+  }
 }
 
 function renderResultsTable(data) {
-  if (!data?.results) return;
+  if (!data?.results?.length) {
+    reviewCard.classList.add("hidden");
+    resultsTableBody.innerHTML = "";
+    return;
+  }
 
   resultsTableBody.innerHTML = "";
   for (const r of data.results) {
@@ -156,6 +186,39 @@ function renderResultsTable(data) {
   }
 
   reviewCard.classList.remove("hidden");
+}
+
+function showError(message) {
+  errorDiv.textContent = message;
+  errorDiv.classList.remove("hidden");
+}
+
+function resetUI() {
+  clearExistingPoll();
+  currentJobId = null;
+  latestJobData = null;
+
+  errorDiv.classList.add("hidden");
+  errorDiv.textContent = "";
+
+  progressFill.style.width = "0%";
+  progressText.textContent = "Starting...";
+  progressCard.classList.add("hidden");
+
+  resultsCard.classList.add("hidden");
+  resultsMessage.textContent = "";
+  downloadPoasBtn.classList.add("hidden");
+  downloadFilingBtn.classList.add("hidden");
+
+  reviewCard.classList.add("hidden");
+  resultsTableBody.innerHTML = "";
+}
+
+function clearExistingPoll() {
+  if (pollInterval) {
+    clearInterval(pollInterval);
+    pollInterval = null;
+  }
 }
 
 function escapeHtml(s) {
