@@ -1,4 +1,4 @@
-const BACKEND_URL = "https://monaco-reg-backend.onrender.com";
+const BACKEND_URL = "https://api-ipb9.onrender.com/monaco";
 
 const fileInput = document.getElementById("fileInput");
 const patentList = document.getElementById("patentList");
